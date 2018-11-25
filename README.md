@@ -19,3 +19,5 @@ $ kubectl clogs --namespace default
 ## Roadmap:
 - Regexp for the pod name
 - Multiple namespaces
+- Labels search
+- Monitoring improvements (`watch` mode)
