@@ -9,25 +9,34 @@ import (
 	"path/filepath"
 )
 
-func main() {
-	kubeConfig, namespace := parseArguments()
-	clientset := createClientSet(*kubeConfig)
+type args struct {
+	kubeConfig    string
+	namespace     string
+	podNameRegexp string
+}
 
-	g := log_group.New(clientset, *namespace)
+func main() {
+	args := parseArguments()
+	clientset := createClientSet(args.kubeConfig)
+
+	g := log_group.New(clientset, args.namespace, args.podNameRegexp)
 	g.Tail()
 }
 
-func parseArguments() (*string, *string) {
+func parseArguments() args {
 	defaultPath := ""
 	if home := os.Getenv("HOME"); home != "" {
 		defaultPath = filepath.Join(home, ".kube", "config")
 	}
 	kubeConfig := flag.String("kubeconfig", defaultPath, "path to the kubeconfig file")
 	namespace := flag.String("namespace", "default", "namespace")
-
+	podNameRegexp := ".*"
 	flag.Parse()
+	if flag.NArg() > 0 {
+		podNameRegexp = flag.Arg(0)
+	}
 
-	return kubeConfig, namespace
+	return args{*kubeConfig, *namespace, podNameRegexp}
 }
 
 func createClientSet(kubeConfig string) *kubernetes.Clientset {

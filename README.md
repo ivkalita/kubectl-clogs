@@ -15,9 +15,9 @@ $ kubectl clogs --namespace default
 ## Features:
 - Logs from all namespace pods in realtime (follow mode)
 - Autoreload – this command monitors all running pods every `N` seconds and adds new pods to the log group
+- Regexp for the pod name
 
 ## Roadmap:
-- Regexp for the pod name
 - Multiple namespaces
 - Labels search
 - Monitoring improvements (`watch` mode)

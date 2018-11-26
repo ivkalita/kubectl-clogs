@@ -7,21 +7,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"regexp"
 	"time"
 )
 
 type colorizeFn func(interface{}) aurora.Value
 
 type LogGroup struct {
-	clientSet *kubernetes.Clientset
-	namespace string
-	colorMap  map[types.UID]colorizeFn
+	clientSet     *kubernetes.Clientset
+	namespace     string
+	podNameRegexp *regexp.Regexp
+	colorMap      map[types.UID]colorizeFn
 }
 
 var colorizers = [...]colorizeFn{aurora.Green, aurora.Magenta, aurora.Cyan, aurora.Red, aurora.Brown, aurora.Blue}
 
-func New(clientSet *kubernetes.Clientset, namespace string) LogGroup {
-	return LogGroup{clientSet, namespace, make(map[types.UID]colorizeFn)}
+func New(clientSet *kubernetes.Clientset, namespace string, podNameRegexp string) LogGroup {
+	return LogGroup{
+		clientSet,
+		namespace,
+		regexp.MustCompile(podNameRegexp),
+		make(map[types.UID]colorizeFn),
+	}
 }
 
 func (lg LogGroup) Tail() {
@@ -58,6 +65,9 @@ func (lg LogGroup) monitorPods(logLineChan chan logLine) {
 				continue
 			}
 			if _, ok := lg.colorMap[p.UID]; ok {
+				continue
+			}
+			if !lg.podNameRegexp.MatchString(p.Name) {
 				continue
 			}
 			lg.colorMap[p.UID] = colorizers[i%len(colorizers)]
