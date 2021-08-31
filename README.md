@@ -5,7 +5,7 @@ This repository contains a simple kubectl command to show all running pods logs 
 
 
 ```bash
-$ go get github.com/kaduev13/kubectl-clogs/cmd/kubectl-clogs
+$ go install github.com/ivkalita/kubectl-clogs/cmd/kubectl-clogs@latest
 $ kubectl clogs --namespace default
 ```
 

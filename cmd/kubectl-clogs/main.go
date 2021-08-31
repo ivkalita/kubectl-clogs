@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"github.com/kaduev13/kubectl-clogs/pkg/log-group"
+	"fmt"
+	"github.com/ivkalita/kubectl-clogs/internal/streams"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"regexp"
+	"syscall"
 )
 
 type args struct {
@@ -16,11 +22,41 @@ type args struct {
 }
 
 func main() {
-	args := parseArguments()
-	clientset := createClientSet(args.kubeConfig)
+	err := run()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
 
-	g := log_group.New(clientset, args.namespace, args.podNameRegexp)
-	g.Tail()
+func run() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	args := parseArguments()
+	cs, err := createClientSet(args.kubeConfig)
+	if err != nil {
+		return fmt.Errorf("prepare k8s client: %w", err)
+	}
+
+	group := streams.NewGroup(cs, args.namespace, regexp.MustCompile(args.podNameRegexp))
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		defer cancel()
+		return group.Tail(ctx)
+	})
+	eg.Go(func() error {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGTERM)
+		select {
+		case <-ctx.Done():
+		case <-c:
+			cancel()
+		}
+		return nil
+	})
+
+	return eg.Wait()
 }
 
 func parseArguments() args {
@@ -39,17 +75,17 @@ func parseArguments() args {
 	return args{*kubeConfig, *namespace, podNameRegexp}
 }
 
-func createClientSet(kubeConfig string) *kubernetes.Clientset {
+func createClientSet(kubeConfig string) (*kubernetes.Clientset, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("build config from flags (%s): %w", kubeConfig, err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	cs, err := kubernetes.NewForConfig(config)
 
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("new for config (%s): %w", kubeConfig, err)
 	}
 
-	return clientset
+	return cs, nil
 }

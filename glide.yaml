@@ -1,9 +1,0 @@
-package: kubectl-clogs
-import:
-- package: k8s.io/apimachinery
-  subpackages:
-  - pkg/api/errors
-  - pkg/apis/meta/v1
-- package: k8s.io/client-go
-  version: v7.0
-- package: github.com/logrusorgru/aurora
